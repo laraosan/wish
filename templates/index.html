@@ -50,6 +50,10 @@
         <button type="submit">Add Wish</button>
     </form>
 
+    <h2>検索:</h2>
+    <input type="text" id="searchContent" placeholder="検索したい内容を入力" oninput="searchWishes()">
+
+
     <h2>願い事の編集・削除:</h2>
     <ul id="wishList"></ul>
 
@@ -121,6 +125,34 @@
                 loadWishes(); // 願い事を再取得
             }
         }
+
+        // あいまい検索を行う関数
+        async function searchWishes() {
+            const searchContent = document.getElementById('searchContent').value;
+            const response = await fetch(`/api/wishes?search=${encodeURIComponent(searchContent)}`);
+            const wishes = await response.json();
+            const wishList = document.getElementById('wishList');
+            wishList.innerHTML = '';
+            wishes.forEach(wish => {
+                const li = document.createElement('li');
+                li.textContent = wish.content;
+
+                const editBtn = document.createElement('button');
+                editBtn.textContent = 'Edit';
+                editBtn.classList.add('edit-btn');
+                editBtn.onclick = () => updateWish(wish.id);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.classList.add('delete-btn');
+                deleteBtn.onclick = () => deleteWish(wish.id);
+
+                li.appendChild(editBtn);
+                li.appendChild(deleteBtn);
+                wishList.appendChild(li);
+            });
+        }
+
 
         loadWishes(); // ページ読み込み時に願い事を読み込む
     </script>

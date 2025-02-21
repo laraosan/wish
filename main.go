@@ -24,7 +24,7 @@ const templatePath = "templates/index.html"
 func main() {
 	var err error
 	// PostgreSQLに接続
-	connStr := "host=127.0.0.1 user=user password=postgres dbname=wish sslmode=disable"
+	connStr := "host=127.0.0.1 user=tera password=password dbname=wish sslmode=disable"
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -88,16 +88,16 @@ func insertWish(content string) error {
 }
 
 // GETリクエストで願い事を一覧取得
-func getWishes(w http.ResponseWriter, r *http.Request) {
-	wishes, err := fetchWishes()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+// func getWishes(w http.ResponseWriter, r *http.Request) {
+// 	wishes, err := fetchWishes()
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(wishes)
-}
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(wishes)
+// }
 
 // PostgreSQLから願い事を取得
 func fetchWishes() ([]Wish, error) {
@@ -163,4 +163,48 @@ func deleteWish(w http.ResponseWriter, r *http.Request) {
 func deleteWishByID(id string) error {
 	_, err := db.Exec("DELETE FROM wishes WHERE id = $1", id)
 	return err
+}
+
+// GETリクエストで願い事を検索
+func getWishes(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("search")
+	var wishes []Wish
+	var err error
+
+	// searchパラメータが存在すればあいまい検索を実行
+	if search != "" {
+		wishes, err = searchWishes(search)
+	} else {
+		wishes, err = fetchWishes()
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(wishes)
+}
+
+// あいまい検索を実行
+func searchWishes(search string) ([]Wish, error) {
+	// PostgreSQLのLIKE演算子を使用してあいまい検索を行う
+	query := `SELECT id, content FROM wishes WHERE content ILIKE '%' || $1 || '%'`
+	rows, err := db.Query(query, search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var wishes []Wish
+	for rows.Next() {
+		var wish Wish
+		err := rows.Scan(&wish.ID, &wish.Content)
+		if err != nil {
+			return nil, err
+		}
+		wishes = append(wishes, wish)
+	}
+	return wishes, nil
 }
